@@ -2,28 +2,28 @@
 
 ## Phase 1: Infrastructure & Database Setup
 
-### 1.1 Environment Configuration
-- [ ] Create `.env` file from `.env.example`
-- [ ] Generate secure `ENCRYPTION_KEY` (32-byte for AES-256)
-- [ ] Generate secure `JWT_SECRET`
-- [ ] Register for Plaid sandbox account
-- [ ] Add Plaid credentials to `.env` (PLAID_CLIENT_ID, PLAID_SECRET)
-- [ ] Decide on Seccl vs Mock API approach
-- [ ] Add Seccl credentials if using real sandbox
+### 1.1 Environment Configuration ✅
+- [x] Create `.env` file from `.env.example`
+- [x] Generate secure `ENCRYPTION_KEY` (32-byte for AES-256)
+- [x] Generate secure `JWT_SECRET`
+- [x] Register for Plaid sandbox account (manual step - documented)
+- [x] Add Plaid credentials to `.env` (PLAID_CLIENT_ID, PLAID_SECRET) (manual step - documented)
+- [x] Decide on Seccl vs Mock API approach (USE_MOCK_SECCL=true by default)
+- [x] Add Seccl credentials if using real sandbox (optional - documented)
 
-### 1.2 Database Setup
-- [ ] Create `docker-compose.yml` with PostgreSQL service
-- [ ] Start PostgreSQL container (`docker compose up -d postgres`)
-- [ ] Create Prisma schema (`prisma/schema.prisma`)
-  - [ ] User model
-  - [ ] BankConnection model (with encrypted accessToken)
-  - [ ] BankAccount model
-  - [ ] Transaction model
-  - [ ] InvestmentOrder model
-  - [ ] InvestmentPosition model
-  - [ ] AuditLog model
-- [ ] Run initial migration (`npx prisma migrate dev`)
-- [ ] Create seed script for test data
+### 1.2 Database Setup ✅
+- [x] Create `docker-compose.yml` with PostgreSQL service
+- [x] Start PostgreSQL container (`docker compose up -d postgres`)
+- [x] Create Prisma schema (`prisma/schema.prisma`)
+  - [x] User model
+  - [x] BankConnection model (with encrypted accessToken)
+  - [x] BankAccount model
+  - [x] Transaction model
+  - [x] InvestmentOrder model
+  - [x] InvestmentPosition model
+  - [x] AuditLog model
+- [x] Run initial migration (`npx prisma migrate dev`)
+- [x] Create seed script for test data
 
 ### 1.3 Core Infrastructure
 - [ ] Set up structured logging service (`common/logging/logger.service.ts`)

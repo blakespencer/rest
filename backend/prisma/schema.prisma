@@ -1,0 +1,222 @@
+// Prisma Schema for Rest Treasury Service
+// Database: PostgreSQL with UUID primary keys
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// User Management
+// ============================================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // bcrypt hashed
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bankConnections  BankConnection[]
+  investmentOrders InvestmentOrder[]
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+// ============================================================================
+// Bank Connectivity (Plaid Integration)
+// ============================================================================
+
+model BankConnection {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Plaid data (ENCRYPTED - accessToken is encrypted at application level)
+  accessToken    String    // AES-256 encrypted Plaid access token
+  itemId         String    @unique // Plaid item ID
+  institutionId  String    // Plaid institution ID
+  institutionName String?
+
+  // Status tracking
+  status         String    @default("ACTIVE") // ACTIVE, DISCONNECTED, ERROR
+  lastSyncedAt   DateTime?
+  lastSyncStatus String?   // SUCCESS, FAILED, PARTIAL
+
+  // Soft delete
+  deletedAt      DateTime?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  accounts       BankAccount[]
+
+  @@index([userId])
+  @@index([itemId])
+  @@map("bank_connections")
+}
+
+model BankAccount {
+  id               String         @id @default(uuid())
+  bankConnectionId String
+  bankConnection   BankConnection @relation(fields: [bankConnectionId], references: [id], onDelete: Cascade)
+
+  // Plaid account data
+  plaidAccountId   String         @unique // Plaid account ID
+  name             String         // Account name from Plaid
+  officialName     String?        // Official account name
+  type             String         // checking, savings, credit, etc.
+  subtype          String?        // More specific type
+  mask             String?        // Last 4 digits (e.g., "1234")
+
+  // Balance information (in cents to avoid floating point issues)
+  currentBalance   Int?           // Current balance in cents
+  availableBalance Int?           // Available balance in cents
+  isoCurrencyCode  String         @default("USD")
+
+  // Metadata
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relations
+  transactions     Transaction[]
+
+  @@index([bankConnectionId])
+  @@index([plaidAccountId])
+  @@map("bank_accounts")
+}
+
+model Transaction {
+  id              String      @id @default(uuid())
+  bankAccountId   String
+  bankAccount     BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  // Plaid transaction data
+  plaidTransactionId String   @unique // Plaid transaction ID
+  name            String      // Merchant/transaction name
+  amount          Int         // Amount in cents (positive for spending, negative for income)
+  isoCurrencyCode String      @default("USD")
+  date            DateTime    // Transaction date
+  pending         Boolean     @default(false)
+
+  // Categories
+  category        String[]    // Array of category hierarchy
+  paymentChannel  String?     // online, in store, etc.
+
+  // Metadata
+  merchantName    String?
+  location        Json?       // Store location data
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([bankAccountId])
+  @@index([plaidTransactionId])
+  @@index([date])
+  @@map("transactions")
+}
+
+// ============================================================================
+// Investment Management (Mock Seccl for MVP)
+// ============================================================================
+// NOTE: Using simplified mock Seccl service for MVP
+// Real Seccl integration would require:
+// - SecclClient model (KYC: name, DOB, address, nationality, bank details)
+// - SecclAsset model (asset universe management)
+// - PaymentInstruction model (cash movement tracking)
+// - SecclAccount model (GIA, ISA, SIPP account types)
+// For 2-hour MVP: keeping it simple with mock service
+// ============================================================================
+
+model InvestmentOrder {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Order details
+  fundId          String   // Money market fund identifier
+  amount          Int      // Amount in cents
+  currency        String   @default("USD")
+
+  // Order status
+  status          String   @default("PENDING") // PENDING, SUBMITTED, FILLED, FAILED, CANCELLED
+  externalOrderId String?  // Seccl order ID
+
+  // Idempotency (CRITICAL for financial operations)
+  idempotencyKey  String   @unique
+
+  // Execution details
+  filledAt        DateTime?
+  filledAmount    Int?     // Actual filled amount in cents
+  failureReason   String?
+
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("investment_orders")
+}
+
+model InvestmentPosition {
+  id            String   @id @default(uuid())
+  userId        String   // Not a foreign key to allow positions without User record
+
+  // Position details
+  fundId        String   // Money market fund identifier
+  fundName      String
+  quantity      Int      // Shares held (in smallest unit)
+  currentValue  Int      // Current value in cents
+  costBasis     Int      // Original cost in cents
+  currency      String   @default("USD")
+
+  // Metadata
+  lastUpdatedAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([fundId])
+  @@map("investment_positions")
+}
+
+// ============================================================================
+// Audit Logging (Compliance & Security)
+// ============================================================================
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Action details
+  action       String   // e.g., "INVESTMENT_ORDER_CREATED", "BANK_CONNECTION_DELETED"
+  resourceType String   // e.g., "INVESTMENT_ORDER", "BANK_CONNECTION"
+  resourceId   String?  // UUID of the affected resource
+
+  // Request context
+  ipAddress    String?
+  userAgent    String?
+
+  // Additional data
+  metadata     Json?    // Flexible JSON for additional context
+
+  // Timestamp
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
