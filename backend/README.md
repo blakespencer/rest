@@ -1,98 +1,171 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Rest Treasury Service - Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS backend for the Rest Treasury Service, providing secure bank connectivity and investment management.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Quick Start
 
-## Description
+**Get started in 5 minutes:**
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+See [docs/QUICKSTART.md](./docs/QUICKSTART.md) for rapid setup.
 
-## Project setup
+## Documentation
+
+- **[Quick Start Guide](./docs/QUICKSTART.md)** - Get running in 5 minutes
+- **[Complete Setup Guide](./docs/SETUP.md)** - Detailed environment configuration and Plaid setup
+- **[Project README](../README.md)** - Architecture and production hardening
+
+## Prerequisites
+
+- Node.js 18+
+- Docker Desktop
+- Plaid account (free sandbox)
+
+## Installation
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+## Environment Setup
+
+1. Copy environment template:
+```bash
+cp .env.example .env
+```
+
+2. Generate security keys:
+```bash
+openssl rand -hex 32    # ENCRYPTION_KEY
+openssl rand -base64 32 # JWT_SECRET
+```
+
+3. Add your Plaid credentials to `.env`:
+   - Get credentials from: https://dashboard.plaid.com/team/keys
+   - Use **sandbox** secret
+
+4. Start PostgreSQL:
+```bash
+docker compose up -d postgres
+```
+
+5. Run migrations:
+```bash
+npx prisma migrate dev
+```
+
+## Development
 
 ```bash
-# development
-$ npm run start
+# Start in watch mode
+npm run start:dev
 
-# watch mode
-$ npm run start:dev
+# Run linter
+npm run lint
 
-# production mode
-$ npm run start:prod
+# Format code
+npm run format
+
+# Build for production
+npm run build
 ```
 
-## Run tests
+## Testing
 
 ```bash
-# unit tests
-$ npm run test
+# Unit tests
+npm run test
 
-# e2e tests
-$ npm run test:e2e
+# Integration tests
+npm run test:integration
 
-# test coverage
-$ npm run test:cov
+# E2E tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
 ```
 
-## Deployment
+## Project Structure
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```
+backend/
+├── src/
+│   ├── auth/              # JWT authentication
+│   ├── plaid/             # Plaid API integration
+│   ├── bank-connection/   # Bank connections
+│   ├── bank-account/      # Account & transaction sync
+│   ├── investment/        # Investment orders
+│   ├── common/            # Shared utilities
+│   │   ├── base/          # BaseService, BaseRepository
+│   │   ├── encryption/    # AES-256 encryption
+│   │   ├── logging/       # Structured logger
+│   │   └── exceptions/    # Custom exceptions
+│   └── prisma/
+│       └── schema.prisma
+│
+├── tests/
+│   ├── integration/       # Database integration tests
+│   └── e2e/               # End-to-end API tests
+│
+├── prisma/
+│   ├── migrations/
+│   └── seed.ts
+│
+├── docs/
+│   ├── QUICKSTART.md      # 5-minute setup
+│   └── SETUP.md           # Detailed setup guide
+│
+└── .env.example           # Environment template
+```
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Architecture Patterns
 
+This backend follows strict architectural patterns for financial services:
+
+- **Three-Layer Architecture**: Controller → Service → Repository
+- **Service Layer Owns Transactions**: All DB transactions managed in services
+- **Repository Layer is Database-Only**: No business logic or API calls
+- **Idempotency for Financial Operations**: All financial mutations require idempotency keys
+- **Field-Level Encryption**: Sensitive data encrypted at rest
+- **Comprehensive Audit Logging**: All financial operations logged
+
+See [CLAUDE.md](../CLAUDE.md) for detailed architecture documentation.
+
+## API Endpoints
+
+Once running, the API is available at `http://localhost:3000`:
+
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/plaid/link-token` - Create Plaid Link token
+- `POST /api/plaid/exchange-token` - Exchange public token
+- `GET /api/bank-accounts` - List bank accounts
+- `GET /api/bank-accounts/consolidated-balance` - Get total balance
+- `POST /api/investments/orders` - Place investment order
+
+## Troubleshooting
+
+**Database connection errors:**
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+docker compose ps
+docker compose restart postgres
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**Plaid API errors:**
+- Verify you're using the **sandbox** secret
+- Check `PLAID_ENV=sandbox` in `.env`
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+**Environment validation errors:**
+- Compare `.env` with `.env.example`
+- Ensure all required variables are set
 
 ## Support
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+For detailed help:
+- Check [docs/SETUP.md](./docs/SETUP.md) for troubleshooting
+- Review Plaid documentation: https://plaid.com/docs/
+- Check NestJS documentation: https://docs.nestjs.com
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Proprietary - Rest Treasury Service
