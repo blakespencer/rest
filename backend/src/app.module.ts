@@ -8,6 +8,8 @@ import { EncryptionModule } from './common/encryption/encryption.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { PlaidModule } from './plaid/plaid.module';
+import { BankConnectionModule } from './bank-connection/bank-connection.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { AuthModule } from './auth/auth.module';
     // Feature modules
     HealthModule,
     AuthModule,
+    PlaidModule,
+    BankConnectionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

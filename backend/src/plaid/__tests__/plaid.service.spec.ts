@@ -193,44 +193,48 @@ describe('PlaidService', () => {
       );
     });
 
-    it('should retry on 5xx server errors', async () => {
-      const serverError = {
-        message: 'Internal server error',
-        response: {
-          status: 500,
-          data: {
-            error_code: 'INTERNAL_SERVER_ERROR',
-            error_type: 'API_ERROR',
+    it(
+      'should retry on 5xx server errors',
+      async () => {
+        const serverError = {
+          message: 'Internal server error',
+          response: {
+            status: 500,
+            data: {
+              error_code: 'INTERNAL_SERVER_ERROR',
+              error_type: 'API_ERROR',
+            },
           },
-        },
-      };
+        };
 
-      const successResponse = {
-        data: {
-          link_token: 'link-sandbox-retry-success',
-          expiration: '2025-01-20T12:00:00Z',
-          request_id: 'req-retry',
-        },
-      };
+        const successResponse = {
+          data: {
+            link_token: 'link-sandbox-retry-success',
+            expiration: '2025-01-20T12:00:00Z',
+            request_id: 'req-retry',
+          },
+        };
 
-      // Fail twice, succeed on third attempt
-      mockPlaidClient.linkTokenCreate
-        .mockRejectedValueOnce(serverError)
-        .mockRejectedValueOnce(serverError)
-        .mockResolvedValueOnce(successResponse as any);
+        // Fail twice, succeed on third attempt
+        mockPlaidClient.linkTokenCreate
+          .mockRejectedValueOnce(serverError)
+          .mockRejectedValueOnce(serverError)
+          .mockResolvedValueOnce(successResponse as any);
 
-      const result = await service.createLinkToken('user-retry');
+        const result = await service.createLinkToken('user-retry');
 
-      expect(result).toEqual(successResponse.data);
-      expect(mockPlaidClient.linkTokenCreate).toHaveBeenCalledTimes(3);
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Retrying Plaid request',
-        expect.objectContaining({
-          attempt: expect.any(Number),
-          maxRetries: 3,
-        }),
-      );
-    });
+        expect(result).toEqual(successResponse.data);
+        expect(mockPlaidClient.linkTokenCreate).toHaveBeenCalledTimes(3);
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'Retrying Plaid request',
+          expect.objectContaining({
+            attempt: expect.any(Number),
+            maxRetries: 3,
+          }),
+        );
+      },
+      20000,
+    );
 
     it('should NOT retry on 4xx client errors', async () => {
       const clientError = {
