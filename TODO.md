@@ -25,14 +25,14 @@
 - [x] Run initial migration (`npx prisma migrate dev`)
 - [x] Create seed script for test data
 
-### 1.3 Core Infrastructure
-- [ ] Set up structured logging service (`common/logging/logger.service.ts`)
-- [ ] Set up encryption service (`common/encryption/encryption.service.ts`)
-- [ ] Create BaseService with transaction helpers
-- [ ] Create BaseRepository pattern
-- [ ] Set up global exception filter
-- [ ] Configure environment variable validation
-- [ ] Add health check endpoint
+### 1.3 Core Infrastructure ✅
+- [x] Set up structured logging service (`common/logging/logger.service.ts`)
+- [x] Set up encryption service (`common/encryption/encryption.service.ts`)
+- [x] Create BaseService with transaction helpers
+- [x] Create BaseRepository pattern
+- [x] Set up global exception filter
+- [x] Configure environment variable validation
+- [x] Add health check endpoint
 
 ---
 
