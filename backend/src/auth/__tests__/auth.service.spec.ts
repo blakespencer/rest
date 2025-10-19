@@ -1,4 +1,5 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from '../auth.service';
 import { AuthRepository } from '../auth.repository';
@@ -15,6 +16,7 @@ describe('AuthService', () => {
   let mockLogger: jest.Mocked<LoggerService>;
   let mockPrisma: jest.Mocked<PrismaService>;
   let mockAuthRepository: jest.Mocked<AuthRepository>;
+  let mockJwtService: jest.Mocked<JwtService>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,7 +38,17 @@ describe('AuthService', () => {
       create: jest.fn(),
     } as any;
 
-    service = new AuthService(mockLogger, mockPrisma, mockAuthRepository);
+    mockJwtService = {
+      sign: jest.fn(),
+      verify: jest.fn(),
+    } as any;
+
+    service = new AuthService(
+      mockLogger,
+      mockPrisma,
+      mockAuthRepository,
+      mockJwtService,
+    );
   });
 
   describe('register', () => {
@@ -65,6 +77,7 @@ describe('AuthService', () => {
       });
 
       (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
+      mockJwtService.sign.mockReturnValue('mock-jwt-token');
 
       const result = await service.register(registerDto);
 
@@ -73,6 +86,13 @@ describe('AuthService', () => {
         email: mockUser.email,
         name: mockUser.name,
         createdAt: mockUser.createdAt,
+        accessToken: 'mock-jwt-token',
+      });
+
+      // Verify JWT token was generated with correct payload
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        sub: mockUser.id,
+        email: mockUser.email,
       });
 
       // Verify password was hashed with correct salt rounds
@@ -223,6 +243,7 @@ describe('AuthService', () => {
       });
 
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      mockJwtService.sign.mockReturnValue('mock-jwt-login-token');
 
       const result = await service.login(loginDto);
 
@@ -231,6 +252,13 @@ describe('AuthService', () => {
         email: mockUser.email,
         name: mockUser.name,
         createdAt: mockUser.createdAt,
+        accessToken: 'mock-jwt-login-token',
+      });
+
+      // Verify JWT token was generated with correct payload
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        sub: mockUser.id,
+        email: mockUser.email,
       });
 
       expect(bcrypt.compare).toHaveBeenCalledWith(
@@ -586,6 +614,206 @@ describe('AuthService', () => {
       });
 
       await expect(service.register(badDto)).rejects.toThrow();
+    });
+  });
+
+  describe('JWT token generation', () => {
+    it('should NOT generate JWT token if registration fails', async () => {
+      const registerDto: RegisterDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const mockTx = {} as any;
+        mockAuthRepository.findByEmail.mockRejectedValue(
+          new Error('Database error'),
+        );
+        return fn(mockTx);
+      });
+
+      await expect(service.register(registerDto)).rejects.toThrow();
+
+      // JWT.sign should NOT be called if registration fails
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('should NOT generate JWT token if login fails', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const mockTx = {} as any;
+        mockAuthRepository.findByEmail.mockResolvedValue(null); // User not found
+        return fn(mockTx);
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      // JWT.sign should NOT be called if login fails
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('should handle JWT.sign throwing an error during registration', async () => {
+      const registerDto: RegisterDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      const mockUser = {
+        id: '123',
+        email: registerDto.email,
+        password: 'hashed',
+        name: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const mockTx = {} as any;
+        mockAuthRepository.findByEmail.mockResolvedValue(null);
+        mockAuthRepository.create.mockResolvedValue(mockUser);
+        return fn(mockTx);
+      });
+
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
+
+      const jwtError = new Error('JWT signing failed - invalid secret');
+      mockJwtService.sign.mockImplementation(() => {
+        throw jwtError;
+      });
+
+      await expect(service.register(registerDto)).rejects.toThrow(jwtError);
+    });
+
+    it('should handle JWT.sign throwing an error during login', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      const mockUser = {
+        id: '123',
+        email: loginDto.email,
+        password: 'hashed',
+        name: 'Test',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const mockTx = {} as any;
+        mockAuthRepository.findByEmail.mockResolvedValue(mockUser);
+        return fn(mockTx);
+      });
+
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      const jwtError = new Error('JWT signing failed');
+      mockJwtService.sign.mockImplementation(() => {
+        throw jwtError;
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(jwtError);
+    });
+
+    it('should generate different JWT tokens for different users', async () => {
+      const user1 = {
+        id: 'user-1',
+        email: 'user1@example.com',
+        password: 'hashed1',
+        name: 'User 1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const user2 = {
+        id: 'user-2',
+        email: 'user2@example.com',
+        password: 'hashed2',
+        name: 'User 2',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // First login
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const mockTx = {} as any;
+        mockAuthRepository.findByEmail.mockResolvedValue(user1);
+        return fn(mockTx);
+      });
+
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      mockJwtService.sign.mockReturnValue('token-user-1');
+
+      await service.login({ email: user1.email, password: 'pass1' });
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        sub: 'user-1',
+        email: 'user1@example.com',
+      });
+
+      jest.clearAllMocks();
+
+      // Second login (different user)
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const mockTx = {} as any;
+        mockAuthRepository.findByEmail.mockResolvedValue(user2);
+        return fn(mockTx);
+      });
+
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      mockJwtService.sign.mockReturnValue('token-user-2');
+
+      await service.login({ email: user2.email, password: 'pass2' });
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        sub: 'user-2',
+        email: 'user2@example.com',
+      });
+    });
+
+    it('should include correct payload in JWT (sub and email only)', async () => {
+      const mockUser = {
+        id: '123',
+        email: 'test@example.com',
+        password: 'hashed',
+        name: 'Test User',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const mockTx = {} as any;
+        mockAuthRepository.findByEmail.mockResolvedValue(null);
+        mockAuthRepository.create.mockResolvedValue(mockUser);
+        return fn(mockTx);
+      });
+
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
+      mockJwtService.sign.mockReturnValue('mock-token');
+
+      await service.register({
+        email: mockUser.email,
+        password: 'password123',
+        name: mockUser.name,
+      });
+
+      // Verify ONLY sub and email are in payload (not password, name, etc.)
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        sub: mockUser.id,
+        email: mockUser.email,
+      });
+
+      // Verify password is NOT in JWT payload
+      const jwtPayload = mockJwtService.sign.mock.calls[0][0];
+      expect(jwtPayload).not.toHaveProperty('password');
+      expect(jwtPayload).not.toHaveProperty('name');
+      expect(jwtPayload).not.toHaveProperty('createdAt');
     });
   });
 });

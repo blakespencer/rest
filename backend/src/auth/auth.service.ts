@@ -3,8 +3,9 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, User } from '@prisma/client';
 import { BaseService } from '../common/base/base.service';
 import { LoggerService } from '../common/logging/logger.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -25,11 +26,21 @@ export class AuthService extends BaseService {
     logger: LoggerService,
     prisma: PrismaService,
     private readonly authRepository: AuthRepository,
+    private readonly jwtService: JwtService,
   ) {
     super();
     this.logger = logger;
     this.logger.setContext('AuthService');
     this.prisma = prisma;
+  }
+
+  private generateJwtToken(user: User): string {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+    };
+
+    return this.jwtService.sign(payload);
   }
 
   async register(dto: RegisterDto): Promise<AuthResponseDto> {
@@ -59,7 +70,13 @@ export class AuthService extends BaseService {
         email: user.email,
       });
 
-      return UserMapper.toAuthResponseDto(user);
+      // Generate JWT token
+      const accessToken = this.generateJwtToken(user);
+
+      return {
+        ...UserMapper.toAuthResponseDto(user),
+        accessToken,
+      };
     });
   }
 
@@ -89,7 +106,13 @@ export class AuthService extends BaseService {
         email: user.email,
       });
 
-      return UserMapper.toAuthResponseDto(user);
+      // Generate JWT token
+      const accessToken = this.generateJwtToken(user);
+
+      return {
+        ...UserMapper.toAuthResponseDto(user),
+        accessToken,
+      };
     });
   }
 }

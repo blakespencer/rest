@@ -3,4 +3,5 @@ export class AuthResponseDto {
   email: string;
   name: string | null;
   createdAt: Date;
+  accessToken: string;
 }

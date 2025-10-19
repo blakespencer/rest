@@ -47,18 +47,26 @@
 - [x] Unit tests for AuthRepository (7 tests)
 - [x] Unit tests for AuthService (16 tests with edge cases)
 
-### 2.2 JWT Implementation
-- [ ] Install @nestjs/jwt and @nestjs/passport
-- [ ] Create JWT strategy
-- [ ] Create JWT auth guard
-- [ ] Add JWT to protected endpoints
+### 2.2 JWT Implementation ✅
+- [x] Install @nestjs/jwt and @nestjs/passport
+- [x] Create JWT strategy with defensive security validation
+- [x] Create JWT auth guard
+- [x] Update AuthService to generate JWT tokens on login/register
+- [x] Update AuthResponseDto to include accessToken
+- [x] Configure JWT module with secret and expiration (1h default)
+- [x] Fixed critical security vulnerability (CVE-2025-30144 style type coercion attack)
+- [ ] Add JWT to protected endpoints (next phase)
 - [ ] Implement token refresh (optional for MVP)
 
-### 2.3 Testing
-- [x] Unit tests for AuthService (16 tests covering security, edge cases, race conditions)
+### 2.3 Testing ✅
+- [x] Unit tests for AuthService (29 tests: 16 core + 7 edge cases + 6 JWT tests)
 - [x] Unit tests for AuthRepository (7 tests covering database operations)
+- [x] Unit tests for JwtStrategy (21 tests including 8 CVE-2025-inspired security tests)
+- [x] Unit tests for JwtAuthGuard (3 tests)
+- [x] **Total: 147 tests passing** (60 auth-related tests)
+- [x] **Found and fixed 1 critical security vulnerability** (type coercion in JWT payload validation)
 - [ ] E2E tests for registration/login
-- [ ] Test JWT validation
+- [ ] E2E tests for JWT-protected endpoints
 
 ---
 
