@@ -7,6 +7,7 @@ import { LoggerModule } from './common/logging/logger.module';
 import { EncryptionModule } from './common/encryption/encryption.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { HealthModule } from './health/health.module';
     PrismaModule,
     // Feature modules
     HealthModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -38,12 +38,14 @@
 
 ## Phase 2: Authentication Module
 
-### 2.1 User Management
-- [ ] Create User entity in Prisma
-- [ ] Create AuthModule
-- [ ] Implement user registration endpoint
-- [ ] Implement user login endpoint
-- [ ] Hash passwords (bcrypt)
+### 2.1 User Management ✅
+- [x] Create User entity in Prisma (completed in Phase 1.2)
+- [x] Create AuthModule
+- [x] Implement user registration endpoint (POST /auth/register)
+- [x] Implement user login endpoint (POST /auth/login)
+- [x] Hash passwords (bcrypt with 10 salt rounds)
+- [x] Unit tests for AuthRepository (7 tests)
+- [x] Unit tests for AuthService (16 tests with edge cases)
 
 ### 2.2 JWT Implementation
 - [ ] Install @nestjs/jwt and @nestjs/passport
@@ -53,7 +55,8 @@
 - [ ] Implement token refresh (optional for MVP)
 
 ### 2.3 Testing
-- [ ] Unit tests for AuthService
+- [x] Unit tests for AuthService (16 tests covering security, edge cases, race conditions)
+- [x] Unit tests for AuthRepository (7 tests covering database operations)
 - [ ] E2E tests for registration/login
 - [ ] Test JWT validation
 
