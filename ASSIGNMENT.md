@@ -24,3 +24,6 @@ simulated investment order into a money market fund (via Seccl or a mock API).
    ● Short README with data flow diagram, architecture explanation, and how you’d
    ● harden for production (auth, reconciliation, retries).
    ● Please do not spend more than 2 hours
+
+https://plaid.com/docs/sandbox/
+https://documenter.getpostman.com/view/25484536/2s8ZDcyKSL

@@ -131,17 +131,59 @@ This backend follows strict architectural patterns for financial services:
 
 See [CLAUDE.md](../CLAUDE.md) for detailed architecture documentation.
 
-## API Endpoints
+## API Documentation
 
-Once running, the API is available at `http://localhost:3000`:
+### Interactive Documentation
+
+Once running, interactive API documentation is available at:
+
+- **Scalar (Modern UI)**: http://localhost:3000/reference
+- **Swagger UI (Traditional)**: http://localhost:3000/api
+
+Both interfaces use the same OpenAPI specification and provide:
+- Interactive API testing
+- Request/response examples
+- Authentication (JWT Bearer tokens)
+- Complete endpoint documentation
+
+### Postman Collection
+
+Import the Postman collection for comprehensive API testing:
+
+**File:** `postman_collection.json`
+
+**Features:**
+- Pre-configured requests for all endpoints
+- Automatic JWT token management (login once, token auto-saved)
+- Test scripts with assertions
+- Auto-generated idempotency keys for investment orders
+- Detailed descriptions and usage notes
+
+**Quick Start:**
+1. Import `postman_collection.json` into Postman
+2. Set `baseUrl` variable (default: `http://localhost:3000`)
+3. Run requests in order:
+   - Register a user
+   - Login (token auto-saved)
+   - All other requests use the token automatically
+
+### cURL Examples
+
+For command-line testing, see **[CURL_EXAMPLES.md](./CURL_EXAMPLES.md)** with:
+- Copy-paste ready cURL commands
+- Complete workflow scripts
+- Response examples
+- Error handling tips
+
+### Key Endpoints
 
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
-- `POST /api/plaid/link-token` - Create Plaid Link token
-- `POST /api/plaid/exchange-token` - Exchange public token
+- `POST /api/bank-connections/plaid/link-token` - Create Plaid Link token
+- `POST /api/bank-connections/plaid/exchange-token` - Exchange public token
 - `GET /api/bank-accounts` - List bank accounts
 - `GET /api/bank-accounts/consolidated-balance` - Get total balance
-- `POST /api/investments/orders` - Place investment order
+- `POST /api/investments/orders` - Place investment order (requires Idempotency-Key header)
 
 ## Troubleshooting
 

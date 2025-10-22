@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, BankConnection, BankAccount } from '@prisma/client';
 import { BaseRepository } from '../common/base/base.repository';
+import { LoggerService } from '../common/logging/logger.service';
 
 export interface CreateBankConnectionData {
   userId: string;
@@ -19,6 +20,12 @@ export interface UpdateBankConnectionData {
 
 @Injectable()
 export class BankConnectionRepository extends BaseRepository {
+  protected readonly logger: LoggerService;
+
+  constructor(logger: LoggerService) {
+    super();
+    this.logger = logger;
+  }
   /**
    * Find bank connection by ID (non-deleted only)
    */

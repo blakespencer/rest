@@ -10,6 +10,9 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { PlaidModule } from './plaid/plaid.module';
 import { BankConnectionModule } from './bank-connection/bank-connection.module';
+import { BankAccountModule } from './bank-account/bank-account.module';
+import { InvestmentModule } from './investment/investment.module';
+import { SecclModule } from './seccl/seccl.module';
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { BankConnectionModule } from './bank-connection/bank-connection.module';
     AuthModule,
     PlaidModule,
     BankConnectionModule,
+    BankAccountModule,
+    SecclModule,
+    InvestmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

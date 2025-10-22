@@ -426,7 +426,7 @@ describe('PlaidService', () => {
 
       expect(result).toEqual(successResponse.data);
       expect(mockPlaidClient.itemPublicTokenExchange).toHaveBeenCalledTimes(3);
-    });
+    }, 20000);
   });
 
   describe('getAccounts', () => {

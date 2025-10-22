@@ -1,0 +1,690 @@
+{
+  "info": {
+    "name": "Rest Treasury API",
+    "description": "Production-ready treasury management system with bank connectivity via Plaid and investment flows via Seccl.\n\n## Usage Instructions\n\n1. **Import this collection** into Postman\n2. **Set collection variables**:\n   - `baseUrl`: http://localhost:3000 (or your deployed URL)\n   - `authToken`: Leave empty (will be set automatically after login)\n3. **Run requests in order**:\n   - Register a user\n   - Login (token auto-saved to `authToken` variable)\n   - All subsequent requests use the token automatically\n\n## Authentication\n\nMost endpoints require JWT authentication. After logging in, the token is automatically saved and used for all protected endpoints.\n\n## Idempotency\n\nInvestment order creation requires an `Idempotency-Key` header to prevent duplicate orders. Generate a unique UUID for each order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Verify registration was successful",
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains user ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('email');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"name\": \"John Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Register a new user account.\n\n**Requirements:**\n- Email must be unique\n- Password minimum 8 characters\n- Name is required"
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Save auth token to collection variable",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains access token\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('accessToken');",
+                  "    ",
+                  "    // Auto-save token for subsequent requests",
+                  "    pm.collectionVariables.set('authToken', jsonData.accessToken);",
+                  "    console.log('✅ Auth token saved to collection variable');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticate user and receive JWT token.\n\n**The token is automatically saved** to the `authToken` collection variable and used for all subsequent requests."
+          },
+          "response": []
+        }
+      ],
+      "description": "User registration and authentication endpoints."
+    },
+    {
+      "name": "2. Plaid Link Flow",
+      "item": [
+        {
+          "name": "Create Link Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains link token\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('linkToken');",
+                  "    pm.expect(jsonData.linkToken).to.include('link-sandbox-');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-connections/plaid/link-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-connections", "plaid", "link-token"]
+            },
+            "description": "Create a Plaid Link token to initialize the Plaid Link flow.\n\n**Authentication:** Required (JWT)\n\n**Use the returned linkToken** to initialize Plaid Link on the frontend."
+          },
+          "response": []
+        },
+        {
+          "name": "Exchange Public Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Bank connection created with accounts\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('institutionId');",
+                  "    pm.expect(jsonData.accounts).to.be.an('array');",
+                  "    pm.expect(jsonData.accounts.length).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"publicToken\": \"public-sandbox-REPLACE_WITH_ACTUAL_TOKEN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-connections/plaid/exchange-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-connections", "plaid", "exchange-token"]
+            },
+            "description": "Exchange Plaid public token for access token and create bank connection.\n\n**Authentication:** Required (JWT)\n\n**Note:** Replace `public-sandbox-REPLACE_WITH_ACTUAL_TOKEN` with the actual public token received from Plaid Link flow.\n\n**Sandbox Testing:**\n- Use Plaid Sandbox credentials: username `user_good`, password `pass_good`\n- The public token expires quickly - exchange immediately after receiving it"
+          },
+          "response": []
+        }
+      ],
+      "description": "Plaid Link integration for connecting bank accounts."
+    },
+    {
+      "name": "3. Bank Connections",
+      "item": [
+        {
+          "name": "List Bank Connections",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns array of connections\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-connections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-connections"]
+            },
+            "description": "Get all bank connections for the authenticated user.\n\n**Authentication:** Required (JWT)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Bank Connection Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-connections/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-connections", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "REPLACE_WITH_CONNECTION_ID",
+                  "description": "Bank connection UUID"
+                }
+              ]
+            },
+            "description": "Get detailed information about a specific bank connection.\n\n**Authentication:** Required (JWT)\n\n**Path Parameter:**\n- `id`: Bank connection UUID"
+          },
+          "response": []
+        },
+        {
+          "name": "Sync Bank Connection",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-connections/:id/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-connections", ":id", "sync"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "REPLACE_WITH_CONNECTION_ID",
+                  "description": "Bank connection UUID"
+                }
+              ]
+            },
+            "description": "Manually trigger sync of bank accounts and balances from Plaid.\n\n**Authentication:** Required (JWT)\n\n**Path Parameter:**\n- `id`: Bank connection UUID"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Bank Connection",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-connections/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-connections", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "REPLACE_WITH_CONNECTION_ID",
+                  "description": "Bank connection UUID"
+                }
+              ]
+            },
+            "description": "Soft delete a bank connection (marks as deleted, doesn't remove from database).\n\n**Authentication:** Required (JWT)\n\n**Path Parameter:**\n- `id`: Bank connection UUID"
+          },
+          "response": []
+        }
+      ],
+      "description": "Manage bank connections created via Plaid."
+    },
+    {
+      "name": "4. Bank Accounts & Transactions",
+      "item": [
+        {
+          "name": "List Bank Accounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns array of accounts\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-accounts"]
+            },
+            "description": "Get all bank accounts across all connections for the authenticated user.\n\n**Authentication:** Required (JWT)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Consolidated Balance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns total balance\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('totalAvailable');",
+                  "    pm.expect(jsonData).to.have.property('totalCurrent');",
+                  "    pm.expect(jsonData).to.have.property('currency');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-accounts/consolidated-balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-accounts", "consolidated-balance"]
+            },
+            "description": "Get consolidated total balance across all bank accounts.\n\n**Authentication:** Required (JWT)\n\n**Returns:**\n- `totalAvailable`: Total available balance\n- `totalCurrent`: Total current balance\n- `currency`: Currency code (e.g., 'USD')\n- `accountCount`: Number of accounts"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-accounts/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-accounts", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "REPLACE_WITH_ACCOUNT_ID",
+                  "description": "Bank account UUID"
+                }
+              ]
+            },
+            "description": "Get detailed information about a specific bank account.\n\n**Authentication:** Required (JWT)\n\n**Path Parameter:**\n- `id`: Bank account UUID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bank-accounts/:id/transactions?startDate=2025-01-01&endDate=2025-10-21",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bank-accounts", ":id", "transactions"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01",
+                  "description": "Start date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-10-21",
+                  "description": "End date (YYYY-MM-DD)"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "REPLACE_WITH_ACCOUNT_ID",
+                  "description": "Bank account UUID"
+                }
+              ]
+            },
+            "description": "Get transactions for a specific bank account within a date range.\n\n**Authentication:** Required (JWT)\n\n**Path Parameter:**\n- `id`: Bank account UUID\n\n**Query Parameters:**\n- `startDate`: Start date (YYYY-MM-DD)\n- `endDate`: End date (YYYY-MM-DD)"
+          },
+          "response": []
+        }
+      ],
+      "description": "View bank accounts and transactions synced from Plaid."
+    },
+    {
+      "name": "5. Investments",
+      "item": [
+        {
+          "name": "Create Investment Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Investment account created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('secclAccountId');",
+                  "    pm.expect(jsonData).to.have.property('wrapperType');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountName\": \"My ISA Account\",\n  \"wrapperType\": \"ISA\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/investments/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "investments", "accounts"]
+            },
+            "description": "Create a new Seccl investment account.\n\n**Authentication:** Required (JWT)\n\n**Body Parameters:**\n- `accountName`: Friendly name for the account\n- `wrapperType`: Account wrapper type\n  - `ISA`: Individual Savings Account\n  - `GIA`: General Investment Account"
+          },
+          "response": []
+        },
+        {
+          "name": "List Investment Accounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns array of accounts\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/investments/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "investments", "accounts"]
+            },
+            "description": "Get all investment accounts for the authenticated user.\n\n**Authentication:** Required (JWT)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/investments/accounts/:id/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "investments", "accounts", ":id", "summary"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "REPLACE_WITH_ACCOUNT_ID",
+                  "description": "Investment account UUID"
+                }
+              ]
+            },
+            "description": "Get detailed summary of an investment account including positions.\n\n**Authentication:** Required (JWT)\n\n**Path Parameter:**\n- `id`: Investment account UUID"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Investment Order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate unique idempotency key",
+                  "const uuid = require('uuid');",
+                  "pm.request.headers.add({",
+                  "    key: 'Idempotency-Key',",
+                  "    value: uuid.v4()",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Order created successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('fundId');",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Unique UUID to prevent duplicate orders"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"secclAccountId\": \"REPLACE_WITH_ACCOUNT_ID\",\n  \"amount\": 10000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/investments/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "investments", "orders"]
+            },
+            "description": "Create a new investment order to purchase money market fund shares.\n\n**Authentication:** Required (JWT)\n\n**CRITICAL:** Requires `Idempotency-Key` header (auto-generated UUID)\n\n**Body Parameters:**\n- `secclAccountId`: Investment account ID (from 'List Investment Accounts')\n- `amount`: Investment amount in pence (e.g., 10000 = £100.00)\n\n**Amount Notes:**\n- Minimum: 100 pence (£1.00)\n- 2% fee deducted automatically\n- Net amount invested = amount - (amount * 0.02)\n\n**Fund Details:**\n- Fund ID: `275F1` (Money Market Fund)\n- Currency: GBP\n- Estimated price: ~£2.27 per share"
+          },
+          "response": []
+        },
+        {
+          "name": "List Investment Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/investments/orders?secclAccountId=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "investments", "orders"],
+              "query": [
+                {
+                  "key": "secclAccountId",
+                  "value": "",
+                  "description": "Optional: Filter by account ID"
+                }
+              ]
+            },
+            "description": "Get all investment orders for the authenticated user.\n\n**Authentication:** Required (JWT)\n\n**Query Parameters:**\n- `secclAccountId` (optional): Filter orders by specific investment account"
+          },
+          "response": []
+        },
+        {
+          "name": "List Investment Positions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/investments/positions?secclAccountId=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "investments", "positions"],
+              "query": [
+                {
+                  "key": "secclAccountId",
+                  "value": "",
+                  "description": "Optional: Filter by account ID"
+                }
+              ]
+            },
+            "description": "Get all investment positions (holdings) for the authenticated user.\n\n**Authentication:** Required (JWT)\n\n**Query Parameters:**\n- `secclAccountId` (optional): Filter positions by specific investment account\n\n**Returns:**\n- Fund holdings with quantity, book value, current value, and growth"
+          },
+          "response": []
+        }
+      ],
+      "description": "Create investment accounts and place orders via Seccl (or mock service)."
+    },
+    {
+      "name": "0. Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"API is healthy\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('ok');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Health check endpoint to verify API is running.\n\n**Authentication:** Not required"
+          },
+          "response": []
+        }
+      ],
+      "description": "System health check endpoint."
+    }
+  ]
+}

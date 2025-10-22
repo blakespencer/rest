@@ -25,6 +25,7 @@ model User {
   // Relations
   bankConnections  BankConnection[]
   investmentOrders InvestmentOrder[]
+  secclAccounts    SecclAccount[]
   auditLogs        AuditLog[]
 
   @@map("users")
@@ -125,67 +126,114 @@ model Transaction {
 }
 
 // ============================================================================
-// Investment Management (Mock Seccl for MVP)
-// ============================================================================
-// NOTE: Using simplified mock Seccl service for MVP
-// Real Seccl integration would require:
-// - SecclClient model (KYC: name, DOB, address, nationality, bank details)
-// - SecclAsset model (asset universe management)
-// - PaymentInstruction model (cash movement tracking)
-// - SecclAccount model (GIA, ISA, SIPP account types)
-// For 2-hour MVP: keeping it simple with mock service
+// Investment Management (Seccl Integration)
 // ============================================================================
 
-model InvestmentOrder {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model SecclAccount {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Order details
-  fundId          String   // Money market fund identifier
-  amount          Int      // Amount in cents
-  currency        String   @default("USD")
+  // Seccl account identifiers
+  secclAccountId   String   @unique // Seccl's account ID
+  secclClientId    String   // Seccl's client ID
+  firmId           String   // Seccl firm ID
 
-  // Order status
-  status          String   @default("PENDING") // PENDING, SUBMITTED, FILLED, FAILED, CANCELLED
-  externalOrderId String?  // Seccl order ID
+  // Account details
+  accountName      String
+  accountType      String   // "Wrapper"
+  wrapperType      String   // ISA, GIA, PENSION, JISA
+  currency         String   @default("GBP")
+  status           String   @default("Active")
 
-  // Idempotency (CRITICAL for financial operations)
-  idempotencyKey  String   @unique
+  // Balances (in pence)
+  cashBalance      Int      @default(0)
+  totalValue       Int      @default(0)
 
-  // Execution details
-  filledAt        DateTime?
-  filledAmount    Int?     // Actual filled amount in cents
-  failureReason   String?
+  // Metadata
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  // Audit
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  // Relations
+  investmentOrders InvestmentOrder[]
+  positions        InvestmentPosition[]
 
   @@index([userId])
+  @@index([secclAccountId])
+  @@map("seccl_accounts")
+}
+
+model InvestmentOrder {
+  id               String        @id @default(uuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  secclAccountId   String
+  secclAccount     SecclAccount  @relation(fields: [secclAccountId], references: [id], onDelete: Cascade)
+
+  // Seccl transaction group data
+  linkId           String?       // Seccl transaction group link ID
+  paymentId        String?       // Seccl payment transaction ID
+  orderId          String?       // Seccl order transaction ID
+
+  // Order details
+  fundId           String        // Money market fund identifier (assetId)
+  fundName         String?
+  amount           Int           // Amount in pence
+  currency         String        @default("GBP")
+
+  // Order status
+  status           String        @default("PENDING") // PENDING, PAYMENT_COMPLETED, ORDER_COMPLETED, FAILED
+
+  // Idempotency (CRITICAL for financial operations)
+  idempotencyKey   String        @unique
+
+  // Execution details
+  executedAt       DateTime?
+  executedQuantity Int?          // Shares purchased
+  executionPrice   Float?        // Price per share
+  executedAmount   Int?          // Actual filled amount in pence
+  failureReason    String?
+
+  // Audit
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([secclAccountId])
   @@index([status])
   @@index([createdAt])
   @@map("investment_orders")
 }
 
 model InvestmentPosition {
-  id            String   @id @default(uuid())
-  userId        String   // Not a foreign key to allow positions without User record
+  id               String        @id @default(uuid())
+  userId           String
+
+  secclAccountId   String
+  secclAccount     SecclAccount  @relation(fields: [secclAccountId], references: [id], onDelete: Cascade)
+
+  // Seccl position data
+  secclPositionId  String        @unique // Format: {accountId}|{positionType}|{isin}
 
   // Position details
-  fundId        String   // Money market fund identifier
-  fundName      String
-  quantity      Int      // Shares held (in smallest unit)
-  currentValue  Int      // Current value in cents
-  costBasis     Int      // Original cost in cents
-  currency      String   @default("USD")
+  fundId           String        // Money market fund identifier (assetId)
+  fundName         String
+  isin             String?       // International Securities ID
+  quantity         Int           // Shares held
+  bookValue        Int           // Original cost in pence
+  currentValue     Int           // Current value in pence
+  growth           Int           @default(0) // Absolute profit/loss in pence
+  growthPercent    Float         @default(0) // Percentage return
+  currency         String        @default("GBP")
 
   // Metadata
-  lastUpdatedAt DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  lastUpdatedAt    DateTime      @default(now())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@index([userId])
+  @@index([secclAccountId])
   @@index([fundId])
   @@map("investment_positions")
 }

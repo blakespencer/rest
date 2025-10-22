@@ -3,7 +3,14 @@ import { LoggerService } from './logger.service';
 
 @Global()
 @Module({
-  providers: [LoggerService],
+  providers: [
+    {
+      provide: LoggerService,
+      useFactory: () => {
+        return new LoggerService();
+      },
+    },
+  ],
   exports: [LoggerService],
 })
 export class LoggerModule {}

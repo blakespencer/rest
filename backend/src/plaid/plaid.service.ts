@@ -9,6 +9,7 @@ import {
   LinkTokenCreateResponse,
   ItemPublicTokenExchangeResponse,
   AccountsGetResponse,
+  TransactionsGetResponse,
 } from 'plaid';
 import retry from 'async-retry';
 import { LoggerService } from '../common/logging/logger.service';
@@ -164,6 +165,55 @@ export class PlaidService {
       });
 
       throw new PlaidIntegrationException('Failed to fetch accounts', error);
+    }
+  }
+
+  /**
+   * Get transactions for an Item
+   * @param accessToken - The access token for the Item
+   * @param startDate - Start date for transactions (YYYY-MM-DD)
+   * @param endDate - End date for transactions (YYYY-MM-DD)
+   * @returns TransactionsGetResponse containing transactions
+   */
+  async getTransactions(
+    accessToken: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<TransactionsGetResponse> {
+    this.logger.debug('Fetching Plaid transactions', {
+      startDate,
+      endDate,
+    });
+
+    try {
+      const response = await this.executeWithRetry(async () => {
+        return this.client.transactionsGet({
+          access_token: accessToken,
+          start_date: startDate,
+          end_date: endDate,
+        });
+      });
+
+      this.logger.info('Transactions fetched successfully', {
+        transactionCount: response.data.transactions.length,
+        totalTransactions: response.data.total_transactions,
+        requestId: response.data.request_id,
+      });
+
+      return response.data;
+    } catch (error) {
+      this.logger.error('Failed to fetch transactions', {
+        startDate,
+        endDate,
+        error: error.message,
+        errorCode: error.response?.data?.error_code,
+        errorType: error.response?.data?.error_type,
+      });
+
+      throw new PlaidIntegrationException(
+        'Failed to fetch transactions',
+        error,
+      );
     }
   }
 
